@@ -1,4 +1,4 @@
-name = "flight-stats-scraper"
+name = "flights-data"
 main = "src/index.ts"
 compatibility_date = "2024-03-11"
 
