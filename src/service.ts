@@ -28,11 +28,9 @@ function transformFlightData(
   
   // Calculate correct dates for overnight flights
   if (type === 'arrivals') {
+    // Early morning arrivals (00:00-06:00) likely departed the previous day
     if (arrivalTime >= '00:00' && arrivalTime <= '06:00') {
       departureDate = getPreviousDayDate(currentDate);
-    } else if (arrivalTime >= '22:00' && arrivalTime <= '23:59') {
-      departureDate = getPreviousDayDate(currentDate);
-      arrivalDate = getPreviousDayDate(currentDate);
     }
   } else if (isOvernightFlight(departureTime, arrivalTime)) {
     arrivalDate = getNextDayDate(currentDate);
@@ -147,16 +145,21 @@ export async function getFlights(
   origin: string,
   destination: string,
   date: string,
-  env: { FLIGHTS_KV: KVNamespace }
+  env: { FLIGHTS_KV: KVNamespace },
+  retried = false
 ): Promise<Flight[]> {
   console.log(`Searching flights: ${origin} -> ${destination} on ${date}`);
-  
+
   // Try to get from cache
   const cached = await env.FLIGHTS_KV.get(CONFIG.CACHE.ALL_FLIGHTS_KEY);
   if (!cached) {
+    if (retried) {
+      console.error('Cache still empty after refresh, returning empty results');
+      return [];
+    }
     console.log('Cache miss, refreshing data...');
     await refreshAllFlightData(env);
-    return getFlights(origin, destination, date, env);
+    return getFlights(origin, destination, date, env, true);
   }
 
   const allFlights = JSON.parse(cached) as Flight[];
